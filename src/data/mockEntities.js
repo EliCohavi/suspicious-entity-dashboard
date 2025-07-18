@@ -1,6 +1,10 @@
 const types = ['Person', 'Shipment', 'IP Address', 'Email', 'File'];
 const sources = ['Watchlist', 'Custom Ingest', 'AI Model', 'Manual Flag'];
 
+const generateEntityId = () => {
+  return Math.random().toString(36).substring(2, 7).toUpperCase();
+};
+
 function randomEntity(id) {
   const risk = Math.floor(Math.random() * 101);
   const statuses = ['Unreviewed', 'Escalated', 'Approved', 'Deleted'];
@@ -15,6 +19,7 @@ function randomEntity(id) {
   };
 }
 
-const mockEntities = Array.from({ length: 25 }, (_, i) => randomEntity(i + 1));
+
+const mockEntities = Array.from({ length: 25 }, (_, i) => randomEntity(generateEntityId()));
 
 export default mockEntities;
