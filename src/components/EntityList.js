@@ -12,11 +12,20 @@ export default function EntityList({ onSelect }) {
             className="p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
             onClick={() => onSelect(entity)}
           >
-{entity.name} - <span className={`font-semibold ${
-  entity.threatLevel === 'High' ? 'text-red-600' :
-  entity.threatLevel === 'Medium' ? 'text-yellow-600' :
-  'text-green-600'
-}`}>{entity.threatLevel}</span>
+{entity.name}
+<span
+  className={`ml-2 px-2 py-1 rounded text-white text-sm font-semibold
+    ${
+      entity.threatLevel === 'High'
+        ? 'bg-red-600'
+        : entity.threatLevel === 'Medium'
+        ? 'bg-orange-500'
+        : 'bg-green-600'
+    }`}
+>
+  {entity.threatLevel}
+</span>
+
           </li>
         ))}
       </ul>

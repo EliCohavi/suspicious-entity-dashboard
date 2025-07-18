@@ -32,7 +32,21 @@ export default function EntityDetail({ entity }) {
   return (
     <div>
       <h2 className="text-lg font-semibold mb-2">{entity.name}</h2>
-      <p><strong>Threat Level:</strong> {entity.threatLevel}</p>
+<p>
+  <strong>Threat Level:</strong>{' '}
+  <span
+    className={`px-2 py-1 rounded text-white text-sm font-semibold
+      ${
+        entity.threatLevel === 'High'
+          ? 'bg-red-600'
+          : entity.threatLevel === 'Medium'
+          ? 'bg-orange-500'
+          : 'bg-green-600'
+      }`}
+  >
+    {entity.threatLevel}
+  </span>
+</p>
       <p><strong>Last Seen:</strong> {relativeTime}</p>
       <p className="mt-4">{entity.description}</p>
     </div>
