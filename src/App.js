@@ -98,6 +98,7 @@ export default function App() {
             className="border border-gray-300 rounded px-3 py-1 text-sm w-64"
           />
         </div>
+                <SpeedInsights />
 
         <EntityTable entities={filtered} onAction={handleAction} />
       </div>
