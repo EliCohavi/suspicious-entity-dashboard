@@ -1,9 +1,9 @@
-// App.js
 import { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import EntityTable from './components/EntityTable';
 import SummaryBar from './components/SummaryBar';
 import mockEntities from './data/mockEntities';
+import { SpeedInsights } from "@vercel/speed-insights/react"
 
 export default function App() {
   const [entities, setEntities] = useState(mockEntities);
