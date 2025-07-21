@@ -11,6 +11,8 @@ export default function App() {
   const [priorityEntities, setPriorityEntities] = useState([]);
   const [deletedEntities, setDeletedEntities] = useState([]);
   const [submittedEntities, setSubmittedEntities] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
+
 
   // UI states
   const [activeTab, setActiveTab] = useState('Unreviewed'); // Unreviewed | Flagged | Priority
@@ -18,7 +20,7 @@ export default function App() {
   const [auditTrail, setAuditTrail] = useState([]);
   const [showAudit, setShowAudit] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
-  
+
   const ingestInterval = useRef(null);
 
   // Utility: add audit log
@@ -156,6 +158,14 @@ export default function App() {
     }
   }
 
+  const requestSort = (key) => {
+  let direction = 'ascending';
+  if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+    direction = 'descending';
+  }
+  setSortConfig({ key, direction });
+  };
+
 
   // Filter entities by active tab and search term
   let displayedEntities = [];
@@ -166,6 +176,23 @@ export default function App() {
   displayedEntities = displayedEntities.filter(e =>
     e.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+
+  const sortedEntities = [...displayedEntities];
+
+  if (sortConfig.key !== null) {
+    sortedEntities.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+      if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
+      return 0;
+    });
+  }
 
   // Critical entities for flashing (riskScore >= 80) across all displayed entities
   const criticalEntities = displayedEntities.filter(e => e.riskScore >= 80);
@@ -245,7 +272,13 @@ export default function App() {
         </div>
 
         {/* Entity Table */}
-        <EntityTable entities={displayedEntities} onAction={handleAction} />
+        <EntityTable
+          entities={sortedEntities}
+          onAction={handleAction}
+          onSort={requestSort}
+          sortConfig={sortConfig}
+        />
+
       </div>
 
       {/* Audit sidebar */}
