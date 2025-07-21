@@ -85,7 +85,7 @@ export default function EntityTable({ entities, onAction, onSort, sortConfig }) 
               )}
               <button
                 onClick={() => onAction(entity.id, 'Deleted')}
-                className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs"
+                className="px-2 py-1 bg-gray-300 text-gray-600 rounded text-xs"
                 title="Delete Entity"
               >
                 🗑️ Delete

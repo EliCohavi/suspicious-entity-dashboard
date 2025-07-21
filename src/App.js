@@ -255,7 +255,7 @@ export default function App() {
 
             <button
               onClick={() => setShowAudit(prev => !prev)}
-              className="px-3 py-1 bg-purple-600 text-white rounded text-sm shadow-sm hover:bg-purple-700 transition"
+              className="px-3 py-1 font-semibold bg-purple-600 text-white rounded text-sm shadow-sm hover:bg-purple-700 transition"
             >
               {showAudit ? 'Hide Audit' : 'Show Audit'}
             </button>
