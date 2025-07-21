@@ -11,13 +11,16 @@ export default function App() {
   const [priorityEntities, setPriorityEntities] = useState([]);
   const [deletedEntities, setDeletedEntities] = useState([]);
   const [submittedEntities, setSubmittedEntities] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
+
 
   // UI states
-  const [activeTab, setActiveTab] = useState('Ingest'); // Ingest | Flagged | Priority
+  const [activeTab, setActiveTab] = useState('Unreviewed'); // Unreviewed | Flagged | Priority
   const [searchTerm, setSearchTerm] = useState('');
   const [auditTrail, setAuditTrail] = useState([]);
   const [showAudit, setShowAudit] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
+
   const ingestInterval = useRef(null);
 
   // Utility: add audit log
@@ -148,23 +151,48 @@ export default function App() {
 
     if (riskScore < 40) {
       return `Likely Noise: ${noises[Math.floor(Math.random() * noises.length)]}`;
-    } else if (riskScore <= 70) {
+    } else if (riskScore < 80) {
       return `Likely Signal: ${signals[Math.floor(Math.random() * signals.length)]}`;
     } else {
       return `Critical: ${criticals[Math.floor(Math.random() * criticals.length)]}`;
     }
   }
 
+  const requestSort = (key) => {
+  let direction = 'ascending';
+  if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+    direction = 'descending';
+  }
+  setSortConfig({ key, direction });
+  };
+
 
   // Filter entities by active tab and search term
   let displayedEntities = [];
-  if (activeTab === 'Ingest') displayedEntities = entities;
+  if (activeTab === 'Unreviewed') displayedEntities = entities;
   else if (activeTab === 'Flagged') displayedEntities = flaggedEntities;
   else if (activeTab === 'Priority') displayedEntities = priorityEntities;
 
   displayedEntities = displayedEntities.filter(e =>
     e.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+
+  const sortedEntities = [...displayedEntities];
+
+  if (sortConfig.key !== null) {
+    sortedEntities.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+      if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
+      return 0;
+    });
+  }
 
   // Critical entities for flashing (riskScore >= 80) across all displayed entities
   const criticalEntities = displayedEntities.filter(e => e.riskScore >= 80);
@@ -196,11 +224,11 @@ export default function App() {
           {/* Left controls: tabs and ingest/audit buttons */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={() => setActiveTab('Ingest')}
+              onClick={() => setActiveTab('Unreviewed')}
               className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
-                ${activeTab === 'Ingest' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                ${activeTab === 'Unreviewed' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
             >
-              Ingest
+              Unreviewed
             </button>
             <button
               onClick={() => setActiveTab('Flagged')}
@@ -244,7 +272,13 @@ export default function App() {
         </div>
 
         {/* Entity Table */}
-        <EntityTable entities={displayedEntities} onAction={handleAction} />
+        <EntityTable
+          entities={sortedEntities}
+          onAction={handleAction}
+          onSort={requestSort}
+          sortConfig={sortConfig}
+        />
+
       </div>
 
       {/* Audit sidebar */}
