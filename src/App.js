@@ -5,7 +5,6 @@ import SummaryBar from './components/SummaryBar';
 import mockEntities from './data/mockEntities';
 
 export default function App() {
-  // Entity arrays: ingest, flagged, priority, deleted, submitted
   const [entities, setEntities] = useState(mockEntities);
   const [flaggedEntities, setFlaggedEntities] = useState([]);
   const [priorityEntities, setPriorityEntities] = useState([]);
@@ -13,9 +12,7 @@ export default function App() {
   const [submittedEntities, setSubmittedEntities] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
-
-  // UI states
-  const [activeTab, setActiveTab] = useState('Unreviewed'); // Unreviewed | Flagged | Priority
+  const [activeTab, setActiveTab] = useState('Ingest');
   const [searchTerm, setSearchTerm] = useState('');
   const [auditTrail, setAuditTrail] = useState([]);
   const [showAudit, setShowAudit] = useState(false);
@@ -23,7 +20,6 @@ export default function App() {
 
   const ingestInterval = useRef(null);
 
-  // Utility: add audit log
   const logAudit = (message) => {
     setAuditTrail(prev => [
       { timestamp: new Date().toISOString(), message },
@@ -31,63 +27,48 @@ export default function App() {
     ]);
   };
 
-  // Handle triage actions: flag for review, priority alert, delete
   const handleAction = (id, newStatus) => {
-    // Helper fn to move entity between arrays
     const moveEntity = (sourceArr, setSourceArr, targetArr, setTargetArr, entityId, newEntityStatus) => {
       const idx = sourceArr.findIndex(e => e.id === entityId);
       if (idx === -1) return false;
       const entity = { ...sourceArr[idx], status: newEntityStatus };
-      // Remove from source
       const newSource = [...sourceArr];
       newSource.splice(idx, 1);
       setSourceArr(newSource);
-      // Add to target (prepend)
       setTargetArr(prev => [entity, ...prev]);
       logAudit(`${entity.name} moved to ${newEntityStatus}`);
       return true;
     };
 
-    // Find entity in any array and move/update accordingly
-    const allEntities = [...entities, ...flaggedEntities, ...priorityEntities];
-
-    // Priority: If newStatus is Deleted
     if (newStatus === 'Deleted') {
-      // Remove from wherever and add to deletedEntities
       if (!moveEntity(entities, setEntities, deletedEntities, setDeletedEntities, id, 'Deleted'))
         if (!moveEntity(flaggedEntities, setFlaggedEntities, deletedEntities, setDeletedEntities, id, 'Deleted'))
           moveEntity(priorityEntities, setPriorityEntities, deletedEntities, setDeletedEntities, id, 'Deleted');
       return;
     }
 
-    // If newStatus is Flagged or Priority, move accordingly
     if (newStatus === 'Flagged') {
       if (!moveEntity(entities, setEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged'))
         if (!moveEntity(priorityEntities, setPriorityEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged'))
-          ; // no else - ignore if not found
+          ;
       return;
     }
 
     if (newStatus === 'Priority') {
       if (!moveEntity(entities, setEntities, priorityEntities, setPriorityEntities, id, 'Priority'))
         if (!moveEntity(flaggedEntities, setFlaggedEntities, priorityEntities, setPriorityEntities, id, 'Priority'))
-          ; // ignore if not found
+          ;
       return;
     }
   };
 
-  // Submit batch flagged and priority to submittedEntities (clears from current)
   const submitBatch = () => {
-    // Append all flagged and priority to submittedEntities
     setSubmittedEntities(prev => [...flaggedEntities, ...priorityEntities, ...prev]);
-    // Log audit
     logAudit(`Submitted batch: ${flaggedEntities.length} flagged, ${priorityEntities.length} priority alert(s)`);
-    // Clear flagged and priority arrays
     setFlaggedEntities([]);
     setPriorityEntities([]);
   };
 
-  // Live ingest toggler
   const toggleIngest = () => {
     if (isIngesting) {
       clearInterval(ingestInterval.current);
@@ -116,14 +97,12 @@ export default function App() {
     }
   };
 
-  // On first load, add summaries to existing entities
   useEffect(() => {
     setEntities(prev =>
       prev.map(e => ({ ...e, summary: generateSummary(e.riskScore) }))
     );
   }, []);
 
-  // Generate fake AI summary - can be replaced by real AI calls later
   function generateSummary(riskScore) {
     const signals = [
       "Matches a watchlist pattern.",
@@ -147,8 +126,6 @@ export default function App() {
       "Critical intelligence priority."
     ];
 
-    console.log(riskScore);
-
     if (riskScore < 40) {
       return `Likely Noise: ${noises[Math.floor(Math.random() * noises.length)]}`;
     } else if (riskScore < 80) {
@@ -159,24 +136,22 @@ export default function App() {
   }
 
   const requestSort = (key) => {
-  let direction = 'ascending';
-  if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-    direction = 'descending';
-  }
-  setSortConfig({ key, direction });
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
   };
 
-
-  // Filter entities by active tab and search term
   let displayedEntities = [];
-  if (activeTab === 'Unreviewed') displayedEntities = entities;
+  if (activeTab === 'Ingest') displayedEntities = entities;
   else if (activeTab === 'Flagged') displayedEntities = flaggedEntities;
   else if (activeTab === 'Priority') displayedEntities = priorityEntities;
+  else if (activeTab === 'Deleted') displayedEntities = deletedEntities;
 
   displayedEntities = displayedEntities.filter(e =>
     e.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
 
   const sortedEntities = [...displayedEntities];
 
@@ -184,17 +159,14 @@ export default function App() {
     sortedEntities.sort((a, b) => {
       let aVal = a[sortConfig.key];
       let bVal = b[sortConfig.key];
-
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
       if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-
       if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
       return 0;
     });
   }
 
-  // Critical entities for flashing (riskScore >= 80) across all displayed entities
   const criticalEntities = displayedEntities.filter(e => e.riskScore >= 80);
 
   return (
@@ -207,7 +179,7 @@ export default function App() {
       />
 
       <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2">
-        {/* Critical Section */}
+        {/* Critical Entities Banner */}
         {criticalEntities.length > 0 && (
           <section className="mb-6 border border-red-400 rounded p-3 bg-red-50 animate-pulse">
             <h3 className="text-red-700 font-semibold mb-2">Critical Entities</h3>
@@ -219,87 +191,75 @@ export default function App() {
           </section>
         )}
 
-        {/* Tabs + Controls */}
-        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-          {/* Left controls: tabs and ingest/audit buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
+        {/* Tabs UI */}
+        <div className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4">
+          {['Ingest', 'Flagged', 'Priority', 'Deleted'].map((tab) => (
             <button
-              onClick={() => setActiveTab('Unreviewed')}
-              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
-                ${activeTab === 'Unreviewed' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 text-sm font-medium px-4 py-2 rounded-full transition-colors duration-200 mx-1
+              ${activeTab === tab
+              ? 'bg-white shadow text-blue-600'
+              : 'bg-transparent text-gray-600 hover:bg-white hover:text-blue-600'
+                }`}
             >
-              Unreviewed
-            </button>
-            <button
-              onClick={() => setActiveTab('Flagged')}
-              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
-                ${activeTab === 'Flagged' ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-            >
-              Flagged
-            </button>
-            <button
-              onClick={() => setActiveTab('Priority')}
-              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
-                ${activeTab === 'Priority' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-            >
-              Priority Alerts
-            </button>
-
-            <button
-              onClick={toggleIngest}
-              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
-                ${isIngesting ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-            >
-              {isIngesting ? 'Stop Ingest' : 'Start Ingest'}
-            </button>
-
-            <button
-              onClick={() => setShowAudit(prev => !prev)}
-              className="px-3 py-1 font-semibold bg-purple-600 text-white rounded text-sm shadow-sm hover:bg-purple-700 transition"
-            >
-              {showAudit ? 'Hide Audit' : 'Show Audit'}
-            </button>
-          </div>
-
-          {/* Right search */}
-          <input
-            type="text"
-            placeholder="Search entities..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-1 text-sm w-64"
-          />
-        </div>
-
-        {/* Entity Table */}
-        <EntityTable
-          entities={sortedEntities}
-          onAction={handleAction}
-          onSort={requestSort}
-          sortConfig={sortConfig}
-        />
-
+          {tab}
+        </button>
+  ))}
       </div>
 
-      {/* Audit sidebar */}
-      {showAudit && (
-        <aside className="absolute top-16 right-0 w-96 h-full bg-white shadow-lg border-l border-gray-200 p-4 overflow-y-auto
-          transition-transform duration-300 ease-in-out
-          transform translate-x-0"
-          style={{ zIndex: 9999 }}
-        >
-          <h3 className="text-lg font-semibold mb-4">Audit Trail</h3>
-          <ul className="text-sm space-y-3">
-            {auditTrail.map((log, idx) => (
-              <li key={idx} className="border-b pb-1">
-                <div className="font-semibold">{new Date(log.timestamp).toLocaleString()}</div>
-                <div>{log.message}</div>
-              </li>
-            ))}
-            {auditTrail.length === 0 && <li className="text-gray-500">No audit logs yet.</li>}
-          </ul>
-        </aside>
-      )}
+      {/* Top Controls */}
+      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={toggleIngest}
+            className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
+                ${isIngesting ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+          >
+            {isIngesting ? 'Stop Ingest' : 'Start Ingest'}
+          </button>
+          <button
+            onClick={() => setShowAudit(prev => !prev)}
+            className="px-3 py-1 font-semibold bg-purple-600 text-white rounded text-sm shadow-sm hover:bg-purple-700 transition"
+          >
+            {showAudit ? 'Hide Audit' : 'Show Audit'}
+          </button>
+        </div>
+
+        <input
+          type="text"
+          placeholder="Search entities..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-1 text-sm w-64"
+        />
+      </div>
+
+      <EntityTable
+        entities={sortedEntities}
+        onAction={handleAction}
+        onSort={requestSort}
+        sortConfig={sortConfig}
+      />
     </div>
+
+      {
+    showAudit && (
+      <aside className="absolute top-16 right-0 w-96 h-full bg-white shadow-lg border-l border-gray-200 p-4 overflow-y-auto transition-transform duration-300 ease-in-out transform translate-x-0"
+        style={{ zIndex: 9999 }}>
+        <h3 className="text-lg font-semibold mb-4">Audit Trail</h3>
+        <ul className="text-sm space-y-3">
+          {auditTrail.map((log, idx) => (
+            <li key={idx} className="border-b pb-1">
+              <div className="font-semibold">{new Date(log.timestamp).toLocaleString()}</div>
+              <div>{log.message}</div>
+            </li>
+          ))}
+          {auditTrail.length === 0 && <li className="text-gray-500">No audit logs yet.</li>}
+        </ul>
+      </aside>
+    )
+  }
+    </div >
   );
 }
