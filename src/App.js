@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import Header from './components/Header';
 import EntityTable from './components/EntityTable';
 import SummaryBar from './components/SummaryBar';
 import mockEntities from './data/mockEntities';
+import { AnimatePresence, motion } from 'framer-motion';
+
+const tabs = ['Ingest', 'Flagged', 'Priority', 'Deleted'];
 
 export default function App() {
   const [entities, setEntities] = useState(mockEntities);
@@ -13,13 +16,30 @@ export default function App() {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
   const [activeTab, setActiveTab] = useState('Ingest');
+  const [direction, setDirection] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [auditTrail, setAuditTrail] = useState([]);
   const [showAudit, setShowAudit] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
 
-  const ingestInterval = useRef(null);
+  // For measuring tab positions to move slider
+  const tabsRef = useRef(null);
+  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
 
+  // Update slider position when activeTab changes or on window resize
+  useLayoutEffect(() => {
+    if (!tabsRef.current) return;
+
+    const tabElements = Array.from(tabsRef.current.querySelectorAll('button'));
+    const activeIndex = tabs.indexOf(activeTab);
+    const activeTabEl = tabElements[activeIndex];
+    if (activeTabEl) {
+      const { offsetLeft, offsetWidth } = activeTabEl;
+      setSliderStyle({ left: offsetLeft, width: offsetWidth });
+    }
+  }, [activeTab, searchTerm]); // also update if search changes (tabs stay fixed, but just in case)
+
+  // Logging, entity move, sorting, ingest, etc (same as your logic)
   const logAudit = (message) => {
     setAuditTrail(prev => [
       { timestamp: new Date().toISOString(), message },
@@ -97,6 +117,8 @@ export default function App() {
     }
   };
 
+  const ingestInterval = useRef(null);
+
   useEffect(() => {
     setEntities(prev =>
       prev.map(e => ({ ...e, summary: generateSummary(e.riskScore) }))
@@ -169,6 +191,36 @@ export default function App() {
 
   const criticalEntities = displayedEntities.filter(e => e.riskScore >= 80);
 
+  // Handle tab change and set slide direction
+  const handleTabChange = (newTab) => {
+    const currentIndex = tabs.indexOf(activeTab);
+    const newIndex = tabs.indexOf(newTab);
+    setDirection(newIndex > currentIndex ? 1 : -1);
+    setActiveTab(newTab);
+  };
+
+  // Animation variants for sliding content
+  const variants = {
+    enter: (direction) => ({
+      x: direction > 0 ? 300 : -300,
+      opacity: 0,
+      position: 'absolute',
+      width: '100%',
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+      position: 'relative',
+      width: '100%',
+    },
+    exit: (direction) => ({
+      x: direction > 0 ? -300 : 300,
+      opacity: 0,
+      position: 'absolute',
+      width: '100%',
+    }),
+  };
+
   return (
     <div className="h-screen flex flex-col relative">
       <Header />
@@ -178,7 +230,7 @@ export default function App() {
         submittedCount={submittedEntities.length}
       />
 
-      <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2">
+      <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2 relative">
         {/* Critical Entities Banner */}
         {criticalEntities.length > 0 && (
           <section className="mb-6 border border-red-400 rounded p-3 bg-red-50 animate-pulse">
@@ -191,75 +243,109 @@ export default function App() {
           </section>
         )}
 
-        {/* Tabs UI */}
-        <div className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4">
-          {['Ingest', 'Flagged', 'Priority', 'Deleted'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 text-sm font-medium px-4 py-2 rounded-full transition-colors duration-200 mx-1
-              ${activeTab === tab
-              ? 'bg-white shadow text-blue-600'
-              : 'bg-transparent text-gray-600 hover:bg-white hover:text-blue-600'
-                }`}
-            >
-          {tab}
-        </button>
-  ))}
-      </div>
+        {/* Tabs */}
+        <div
+          className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4 relative select-none"
+          ref={tabsRef}
+          style={{ userSelect: 'none' }}
+        >
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => handleTabChange(tab)}
+                className={`flex-1 text-sm font-medium px-4 py-2 rounded-full mx-1 transition-colors duration-200
+                  ${isActive ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-blue-600 hover:bg-white'}`}
+                type="button"
+              >
+                {tab}
+              </button>
+            );
+          })}
 
-      {/* Top Controls */}
-      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={toggleIngest}
-            className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
+          {/* Sliding pill highlight */}
+          <motion.div
+            className="absolute top-1 bottom-1 bg-white rounded-full shadow-md"
+            layout
+            layoutId="slider"
+            style={{
+              left: sliderStyle.left,
+              width: sliderStyle.width,
+              transition: 'left 0.3s ease, width 0.3s ease',
+              pointerEvents: 'none',
+            }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          >
+              {/* Text inside the active pill */}
+      <div className="flex items-center justify-center h-full">
+        <span className="text-blue-600 font-semibold text-sm">
+          {activeTab}
+        </span>
+      </div>
+      </motion.div>
+      </div>
+      
+        {/* Controls */}
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={toggleIngest}
+              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
                 ${isIngesting ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-          >
-            {isIngesting ? 'Stop Ingest' : 'Start Ingest'}
-          </button>
-          <button
-            onClick={() => setShowAudit(prev => !prev)}
-            className="px-3 py-1 font-semibold bg-purple-600 text-white rounded text-sm shadow-sm hover:bg-purple-700 transition"
-          >
-            {showAudit ? 'Hide Audit' : 'Show Audit'}
-          </button>
+            >
+              {isIngesting ? 'Stop Ingest' : 'Start Ingest'}
+            </button>
+            <button
+              onClick={() => setShowAudit(prev => !prev)}
+              className="px-3 py-1 font-semibold bg-purple-600 text-white rounded text-sm shadow-sm hover:bg-purple-700 transition"
+            >
+              {showAudit ? 'Hide Audit' : 'Show Audit'}
+            </button>
+          </div>
+
+          <input
+            type="text"
+            placeholder="Search entities..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-1 text-sm w-64"
+          />
         </div>
 
-        <input
-          type="text"
-          placeholder="Search entities..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-1 text-sm w-64"
-        />
+        {/* Sliding content */}
+        <AnimatePresence initial={false} custom={direction} mode="wait">
+          <motion.div
+            key={activeTab}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+          >
+            <EntityTable entities={sortedEntities} onAction={handleAction} onSort={requestSort} sortConfig={sortConfig} />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      <EntityTable
-        entities={sortedEntities}
-        onAction={handleAction}
-        onSort={requestSort}
-        sortConfig={sortConfig}
-      />
+      {showAudit && (
+        <aside
+          className="absolute top-16 right-0 w-96 h-full bg-white shadow-lg border-l border-gray-200 p-4 overflow-y-auto transition-transform duration-300 ease-in-out transform translate-x-0"
+          style={{ zIndex: 9999 }}
+        >
+          <h3 className="text-lg font-semibold mb-4">Audit Trail</h3>
+          <ul className="text-sm space-y-3">
+            {auditTrail.map((log, idx) => (
+              <li key={idx} className="border-b pb-1">
+                <div className="font-semibold">{new Date(log.timestamp).toLocaleString()}</div>
+                <div>{log.message}</div>
+              </li>
+            ))}
+            {auditTrail.length === 0 && <li className="text-gray-500">No audit logs yet.</li>}
+          </ul>
+        </aside>
+      )}
     </div>
-
-      {
-    showAudit && (
-      <aside className="absolute top-16 right-0 w-96 h-full bg-white shadow-lg border-l border-gray-200 p-4 overflow-y-auto transition-transform duration-300 ease-in-out transform translate-x-0"
-        style={{ zIndex: 9999 }}>
-        <h3 className="text-lg font-semibold mb-4">Audit Trail</h3>
-        <ul className="text-sm space-y-3">
-          {auditTrail.map((log, idx) => (
-            <li key={idx} className="border-b pb-1">
-              <div className="font-semibold">{new Date(log.timestamp).toLocaleString()}</div>
-              <div>{log.message}</div>
-            </li>
-          ))}
-          {auditTrail.length === 0 && <li className="text-gray-500">No audit logs yet.</li>}
-        </ul>
-      </aside>
-    )
-  }
-    </div >
   );
 }
