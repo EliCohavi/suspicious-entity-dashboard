@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import Header from './components/Header';
 import EntityTable from './components/EntityTable';
 import SummaryBar from './components/SummaryBar';
 import mockEntities from './data/mockEntities';
+import { AnimatePresence, motion } from 'framer-motion';
+
+const tabs = ['Ingest', 'Flagged', 'Priority', 'Deleted'];
 
 export default function App() {
-  // Entity arrays: ingest, flagged, priority, deleted, submitted
   const [entities, setEntities] = useState(mockEntities);
   const [flaggedEntities, setFlaggedEntities] = useState([]);
   const [priorityEntities, setPriorityEntities] = useState([]);
@@ -13,17 +15,31 @@ export default function App() {
   const [submittedEntities, setSubmittedEntities] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
-
-  // UI states
-  const [activeTab, setActiveTab] = useState('Unreviewed'); // Unreviewed | Flagged | Priority
+  const [activeTab, setActiveTab] = useState('Ingest');
+  const [direction, setDirection] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [auditTrail, setAuditTrail] = useState([]);
   const [showAudit, setShowAudit] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
 
-  const ingestInterval = useRef(null);
+  // For measuring tab positions to move slider
+  const tabsRef = useRef(null);
+  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
 
-  // Utility: add audit log
+  // Update slider position when activeTab changes or on window resize
+  useLayoutEffect(() => {
+    if (!tabsRef.current) return;
+
+    const tabElements = Array.from(tabsRef.current.querySelectorAll('button'));
+    const activeIndex = tabs.indexOf(activeTab);
+    const activeTabEl = tabElements[activeIndex];
+    if (activeTabEl) {
+      const { offsetLeft, offsetWidth } = activeTabEl;
+      setSliderStyle({ left: offsetLeft, width: offsetWidth });
+    }
+  }, [activeTab, searchTerm]); // also update if search changes (tabs stay fixed, but just in case)
+
+  // Logging, entity move, sorting, ingest, etc (same as your logic)
   const logAudit = (message) => {
     setAuditTrail(prev => [
       { timestamp: new Date().toISOString(), message },
@@ -31,63 +47,48 @@ export default function App() {
     ]);
   };
 
-  // Handle triage actions: flag for review, priority alert, delete
   const handleAction = (id, newStatus) => {
-    // Helper fn to move entity between arrays
     const moveEntity = (sourceArr, setSourceArr, targetArr, setTargetArr, entityId, newEntityStatus) => {
       const idx = sourceArr.findIndex(e => e.id === entityId);
       if (idx === -1) return false;
       const entity = { ...sourceArr[idx], status: newEntityStatus };
-      // Remove from source
       const newSource = [...sourceArr];
       newSource.splice(idx, 1);
       setSourceArr(newSource);
-      // Add to target (prepend)
       setTargetArr(prev => [entity, ...prev]);
       logAudit(`${entity.name} moved to ${newEntityStatus}`);
       return true;
     };
 
-    // Find entity in any array and move/update accordingly
-    const allEntities = [...entities, ...flaggedEntities, ...priorityEntities];
-
-    // Priority: If newStatus is Deleted
     if (newStatus === 'Deleted') {
-      // Remove from wherever and add to deletedEntities
       if (!moveEntity(entities, setEntities, deletedEntities, setDeletedEntities, id, 'Deleted'))
         if (!moveEntity(flaggedEntities, setFlaggedEntities, deletedEntities, setDeletedEntities, id, 'Deleted'))
           moveEntity(priorityEntities, setPriorityEntities, deletedEntities, setDeletedEntities, id, 'Deleted');
       return;
     }
 
-    // If newStatus is Flagged or Priority, move accordingly
     if (newStatus === 'Flagged') {
       if (!moveEntity(entities, setEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged'))
         if (!moveEntity(priorityEntities, setPriorityEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged'))
-          ; // no else - ignore if not found
+          ;
       return;
     }
 
     if (newStatus === 'Priority') {
       if (!moveEntity(entities, setEntities, priorityEntities, setPriorityEntities, id, 'Priority'))
         if (!moveEntity(flaggedEntities, setFlaggedEntities, priorityEntities, setPriorityEntities, id, 'Priority'))
-          ; // ignore if not found
+          ;
       return;
     }
   };
 
-  // Submit batch flagged and priority to submittedEntities (clears from current)
   const submitBatch = () => {
-    // Append all flagged and priority to submittedEntities
     setSubmittedEntities(prev => [...flaggedEntities, ...priorityEntities, ...prev]);
-    // Log audit
     logAudit(`Submitted batch: ${flaggedEntities.length} flagged, ${priorityEntities.length} priority alert(s)`);
-    // Clear flagged and priority arrays
     setFlaggedEntities([]);
     setPriorityEntities([]);
   };
 
-  // Live ingest toggler
   const toggleIngest = () => {
     if (isIngesting) {
       clearInterval(ingestInterval.current);
@@ -116,14 +117,14 @@ export default function App() {
     }
   };
 
-  // On first load, add summaries to existing entities
+  const ingestInterval = useRef(null);
+
   useEffect(() => {
     setEntities(prev =>
       prev.map(e => ({ ...e, summary: generateSummary(e.riskScore) }))
     );
   }, []);
 
-  // Generate fake AI summary - can be replaced by real AI calls later
   function generateSummary(riskScore) {
     const signals = [
       "Matches a watchlist pattern.",
@@ -147,8 +148,6 @@ export default function App() {
       "Critical intelligence priority."
     ];
 
-    console.log(riskScore);
-
     if (riskScore < 40) {
       return `Likely Noise: ${noises[Math.floor(Math.random() * noises.length)]}`;
     } else if (riskScore < 80) {
@@ -159,24 +158,22 @@ export default function App() {
   }
 
   const requestSort = (key) => {
-  let direction = 'ascending';
-  if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-    direction = 'descending';
-  }
-  setSortConfig({ key, direction });
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
   };
 
-
-  // Filter entities by active tab and search term
   let displayedEntities = [];
-  if (activeTab === 'Unreviewed') displayedEntities = entities;
+  if (activeTab === 'Ingest') displayedEntities = entities;
   else if (activeTab === 'Flagged') displayedEntities = flaggedEntities;
   else if (activeTab === 'Priority') displayedEntities = priorityEntities;
+  else if (activeTab === 'Deleted') displayedEntities = deletedEntities;
 
   displayedEntities = displayedEntities.filter(e =>
     e.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
 
   const sortedEntities = [...displayedEntities];
 
@@ -184,18 +181,45 @@ export default function App() {
     sortedEntities.sort((a, b) => {
       let aVal = a[sortConfig.key];
       let bVal = b[sortConfig.key];
-
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
       if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-
       if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
       return 0;
     });
   }
 
-  // Critical entities for flashing (riskScore >= 80) across all displayed entities
   const criticalEntities = displayedEntities.filter(e => e.riskScore >= 80);
+
+  // Handle tab change and set slide direction
+  const handleTabChange = (newTab) => {
+    const currentIndex = tabs.indexOf(activeTab);
+    const newIndex = tabs.indexOf(newTab);
+    setDirection(newIndex > currentIndex ? 1 : -1);
+    setActiveTab(newTab);
+  };
+
+  // Animation variants for sliding content
+  const variants = {
+    enter: (direction) => ({
+      x: direction > 0 ? 300 : -300,
+      opacity: 0,
+      position: 'absolute',
+      width: '100%',
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+      position: 'relative',
+      width: '100%',
+    },
+    exit: (direction) => ({
+      x: direction > 0 ? -300 : 300,
+      opacity: 0,
+      position: 'absolute',
+      width: '100%',
+    }),
+  };
 
   return (
     <div className="h-screen flex flex-col relative">
@@ -206,8 +230,8 @@ export default function App() {
         submittedCount={submittedEntities.length}
       />
 
-      <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2">
-        {/* Critical Section */}
+      <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2 relative">
+        {/* Critical Entities Banner */}
         {criticalEntities.length > 0 && (
           <section className="mb-6 border border-red-400 rounded p-3 bg-red-50 animate-pulse">
             <h3 className="text-red-700 font-semibold mb-2">Critical Entities</h3>
@@ -219,32 +243,52 @@ export default function App() {
           </section>
         )}
 
-        {/* Tabs + Controls */}
-        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-          {/* Left controls: tabs and ingest/audit buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setActiveTab('Unreviewed')}
-              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
-                ${activeTab === 'Unreviewed' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-            >
-              Unreviewed
-            </button>
-            <button
-              onClick={() => setActiveTab('Flagged')}
-              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
-                ${activeTab === 'Flagged' ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-            >
-              Flagged
-            </button>
-            <button
-              onClick={() => setActiveTab('Priority')}
-              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
-                ${activeTab === 'Priority' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-            >
-              Priority Alerts
-            </button>
+        {/* Tabs */}
+        <div
+          className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4 relative select-none"
+          ref={tabsRef}
+          style={{ userSelect: 'none' }}
+        >
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => handleTabChange(tab)}
+                className={`flex-1 text-sm font-medium px-4 py-2 rounded-full mx-1 transition-colors duration-200
+                  ${isActive ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-blue-600 hover:bg-white'}`}
+                type="button"
+              >
+                {tab}
+              </button>
+            );
+          })}
 
+          {/* Sliding pill highlight */}
+          <motion.div
+            className="absolute top-1 bottom-1 bg-white rounded-full shadow-md"
+            layout
+            layoutId="slider"
+            style={{
+              left: sliderStyle.left,
+              width: sliderStyle.width,
+              transition: 'left 0.3s ease, width 0.3s ease',
+              pointerEvents: 'none',
+            }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          >
+              {/* Text inside the active pill */}
+      <div className="flex items-center justify-center h-full">
+        <span className="text-blue-600 font-semibold text-sm">
+          {activeTab}
+        </span>
+      </div>
+      </motion.div>
+      </div>
+      
+        {/* Controls */}
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={toggleIngest}
               className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
@@ -252,16 +296,14 @@ export default function App() {
             >
               {isIngesting ? 'Stop Ingest' : 'Start Ingest'}
             </button>
-
             <button
               onClick={() => setShowAudit(prev => !prev)}
-              className="px-3 py-1 bg-purple-600 text-white rounded text-sm shadow-sm hover:bg-purple-700 transition"
+              className="px-3 py-1 font-semibold bg-purple-600 text-white rounded text-sm shadow-sm hover:bg-purple-700 transition"
             >
               {showAudit ? 'Hide Audit' : 'Show Audit'}
             </button>
           </div>
 
-          {/* Right search */}
           <input
             type="text"
             placeholder="Search entities..."
@@ -271,21 +313,25 @@ export default function App() {
           />
         </div>
 
-        {/* Entity Table */}
-        <EntityTable
-          entities={sortedEntities}
-          onAction={handleAction}
-          onSort={requestSort}
-          sortConfig={sortConfig}
-        />
-
+        {/* Sliding content */}
+        <AnimatePresence initial={false} custom={direction} mode="wait">
+          <motion.div
+            key={activeTab}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+          >
+            <EntityTable entities={sortedEntities} onAction={handleAction} onSort={requestSort} sortConfig={sortConfig} />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {/* Audit sidebar */}
       {showAudit && (
-        <aside className="absolute top-16 right-0 w-96 h-full bg-white shadow-lg border-l border-gray-200 p-4 overflow-y-auto
-          transition-transform duration-300 ease-in-out
-          transform translate-x-0"
+        <aside
+          className="absolute top-16 right-0 w-96 h-full bg-white shadow-lg border-l border-gray-200 p-4 overflow-y-auto transition-transform duration-300 ease-in-out transform translate-x-0"
           style={{ zIndex: 9999 }}
         >
           <h3 className="text-lg font-semibold mb-4">Audit Trail</h3>
