@@ -313,7 +313,7 @@ export default function App() {
       pointerEvents: 'none',
       zIndex: 0, // behind buttons
     }}
-    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+    transition={{ type: "tween", duration: 0.3, ease: "easeInOut" }}
   />
 </div>
 
@@ -367,27 +367,22 @@ export default function App() {
             variants={{
               enter: (direction) => ({
                 x: direction > 0 ? 300 : -300,
-                opacity: 0,
-                position: 'absolute',
-                width: '100%',
+    opacity: 0,
               }),
               center: {
                 x: 0,
-                opacity: 1,
-                position: 'relative',
-                width: '100%',
+    opacity: 1,
               },
               exit: (direction) => ({
                 x: direction > 0 ? -300 : 300,
-                opacity: 0,
-                position: 'absolute',
-                width: '100%',
+    opacity: 0,
               }),
             }}
+
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            transition={{ type: "tween", duration: 0.25, ease: "easeInOut" }}
           >
             <EntityTable
               entities={sortedEntities}
