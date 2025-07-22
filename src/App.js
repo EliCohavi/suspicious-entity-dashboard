@@ -13,6 +13,7 @@ export default function App() {
   const [priorityEntities, setPriorityEntities] = useState([]);
   const [deletedEntities, setDeletedEntities] = useState([]);
   const [submittedEntities, setSubmittedEntities] = useState([]);
+  const [sentEntities, setSentEntities] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
   const [activeTab, setActiveTab] = useState('Ingest');
@@ -37,9 +38,9 @@ export default function App() {
       const { offsetLeft, offsetWidth } = activeTabEl;
       setSliderStyle({ left: offsetLeft, width: offsetWidth });
     }
-  }, [activeTab, searchTerm]); // also update if search changes (tabs stay fixed, but just in case)
+  }, [activeTab, searchTerm]);
 
-  // Logging, entity move, sorting, ingest, etc (same as your logic)
+  // Logging, entity move, sorting, ingest, etc
   const logAudit = (message) => {
     setAuditTrail(prev => [
       { timestamp: new Date().toISOString(), message },
@@ -79,6 +80,18 @@ export default function App() {
         if (!moveEntity(flaggedEntities, setFlaggedEntities, priorityEntities, setPriorityEntities, id, 'Priority'))
           ;
       return;
+    }
+
+    // Add to sentEntities on Approved or Escalated (no duplicates)
+    if (newStatus === 'Approved' || newStatus === 'Escalated') {
+      const allEntities = [...entities, ...flaggedEntities, ...priorityEntities, ...deletedEntities];
+      const entity = allEntities.find(e => e.id === id);
+      if (entity) {
+        setSentEntities(prev => {
+          if (prev.find(e => e.id === id)) return prev;
+          return [...prev, { ...entity, status: newStatus }];
+        });
+      }
     }
   };
 
@@ -221,6 +234,26 @@ export default function App() {
     }),
   };
 
+  // Download report function
+  const handleDownloadReport = () => {
+    const report = {
+      generatedAt: new Date().toISOString(),
+      sentEntities,
+      auditTrail,
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="h-screen flex flex-col relative">
       <Header />
@@ -266,26 +299,24 @@ export default function App() {
 
           {/* Sliding pill highlight */}
           <motion.div
-            className="absolute top-1 bottom-1 bg-white rounded-full shadow-md"
+            className="absolute top-1 bottom-1 bg-white rounded-full shadow-md pointer-events-none"
             layout
             layoutId="slider"
             style={{
               left: sliderStyle.left,
               width: sliderStyle.width,
               transition: 'left 0.3s ease, width 0.3s ease',
-              pointerEvents: 'none',
             }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
-              {/* Text inside the active pill */}
-      <div className="flex items-center justify-center h-full">
-        <span className="text-blue-600 font-semibold text-sm">
-          {activeTab}
-        </span>
-      </div>
-      </motion.div>
-      </div>
-      
+            <div className="flex items-center justify-center h-full pointer-events-none">
+              <span className="text-blue-600 font-semibold text-sm">
+                {activeTab}
+              </span>
+            </div>
+          </motion.div>
+        </div>
+
         {/* Controls */}
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -302,6 +333,20 @@ export default function App() {
             >
               {showAudit ? 'Hide Audit' : 'Show Audit'}
             </button>
+
+            {/* Download Report button */}
+            <button
+              onClick={handleDownloadReport}
+              disabled={submittedEntities.length === 0}
+              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
+    ${submittedEntities.length === 0
+                  ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+            >
+              Download Report
+            </button>
+
           </div>
 
           <input
@@ -318,53 +363,70 @@ export default function App() {
           <motion.div
             key={activeTab}
             custom={direction}
-            variants={variants}
+            variants={{
+              enter: (direction) => ({
+                x: direction > 0 ? 300 : -300,
+                opacity: 0,
+                position: 'absolute',
+                width: '100%',
+              }),
+              center: {
+                x: 0,
+                opacity: 1,
+                position: 'relative',
+                width: '100%',
+              },
+              exit: (direction) => ({
+                x: direction > 0 ? -300 : 300,
+                opacity: 0,
+                position: 'absolute',
+                width: '100%',
+              }),
+            }}
             initial="enter"
             animate="center"
             exit="exit"
             transition={{ duration: 0.3, ease: 'easeInOut' }}
           >
-            <EntityTable entities={sortedEntities} onAction={handleAction} onSort={requestSort} sortConfig={sortConfig} />
+            <EntityTable
+              entities={sortedEntities}
+              onAction={handleAction}
+              onSort={requestSort}
+              sortConfig={sortConfig}
+            />
           </motion.div>
         </AnimatePresence>
       </div>
 
-      <AnimatePresence>
-  {showAudit && (
-    <motion.div
-      key="audit"
-      initial={{ x: '100%', opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: '100%', opacity: 0 }}
-      transition={{ type: 'tween', duration: 0.3 }}
-      className="fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-xl z-50 p-4 overflow-y-auto"
-    >
-      {/* Close Button */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Audit Log</h2>
-        <button
-          onClick={() => setShowAudit(false)}
-          className="text-gray-500 hover:text-red-500 text-xl font-bold"
+      {showAudit && (
+        <aside
+          className="absolute top-16 right-0 w-96 h-full bg-white shadow-lg border-l border-gray-200 p-4 overflow-y-auto transition-transform duration-300 ease-in-out transform translate-x-0"
+          style={{ zIndex: 9999 }}
         >
-          ×
-        </button>
-      </div>
-
-      {/* Render your audit log entries here */}
-      {auditTrail.length > 0 ? (
-        <ul className="space-y-2">
-          {auditTrail.map((log, idx) => (
-            <li key={idx} className="text-sm text-gray-700 border-b pb-2">
-              {log}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-gray-500">No actions yet.</p>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Audit Trail</h3>
+            <button
+              onClick={() => setShowAudit(false)}
+              className="text-gray-600 hover:text-gray-900 transition"
+              aria-label="Close Audit Log"
+            >
+              ✕
+            </button>
+          </div>
+          <ul className="text-sm space-y-3">
+            {auditTrail.length > 0 ? (
+              auditTrail.map((log, idx) => (
+                <li key={idx} className="border-b pb-1">
+                  <div className="font-semibold">{new Date(log.timestamp).toLocaleString()}</div>
+                  <div>{log.message}</div>
+                </li>
+              ))
+            ) : (
+              <li className="text-gray-500">No audit logs yet.</li>
+            )}
+          </ul>
+        </aside>
       )}
-    </motion.div>
-  )}
-</AnimatePresence>
     </div>
   );
 }
