@@ -281,45 +281,42 @@ export default function App() {
   )}
 
         {/* Tabs */}
-        <div
-          className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4 relative select-none"
-          ref={tabsRef}
-          style={{ userSelect: 'none' }}
-        >
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => handleTabChange(tab)}
-                className={`flex-1 text-sm font-medium px-4 py-2 rounded-full mx-1 transition-colors duration-200
-                  ${isActive ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-blue-600 hover:bg-white'}`}
-                type="button"
-              >
-                {tab}
-              </button>
-            );
-          })}
+<div
+  className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4 relative select-none"
+  ref={tabsRef}
+  style={{ userSelect: 'none' }}
+>
+  {tabs.map((tab) => {
+    const isActive = activeTab === tab;
+    return (
+      <button
+        key={tab}
+        onClick={() => handleTabChange(tab)}
+        className={`flex-1 text-sm font-medium px-4 py-2 rounded-full mx-1 transition-colors duration-200 relative z-10
+          ${isActive ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-blue-600 hover:bg-white'}`}
+        type="button"
+      >
+        {tab}
+      </button>
+    );
+  })}
 
-          {/* Sliding pill highlight */}
-          <motion.div
-            className="absolute top-1 bottom-1 bg-white rounded-full shadow-md pointer-events-none"
-            layout
-            layoutId="slider"
-            style={{
-              left: sliderStyle.left,
-              width: sliderStyle.width,
-              transition: 'left 0.3s ease, width 0.3s ease',
-            }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          >
-            <div className="flex items-center justify-center h-full pointer-events-none">
-              <span className="text-blue-600 font-semibold text-sm">
-                {activeTab}
-              </span>
-            </div>
-          </motion.div>
-        </div>
+  {/* Sliding pill highlight - no text inside, z-index below buttons */}
+  <motion.div
+    className="absolute top-1 bottom-1 bg-white rounded-full shadow-md"
+    layout
+    layoutId="slider"
+    style={{
+      left: sliderStyle.left,
+      width: sliderStyle.width,
+      transition: 'left 0.3s ease, width 0.3s ease',
+      pointerEvents: 'none',
+      zIndex: 0, // behind buttons
+    }}
+    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+  />
+</div>
+
 
         {/* Controls */}
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
