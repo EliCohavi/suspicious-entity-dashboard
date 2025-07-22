@@ -329,23 +329,42 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      {showAudit && (
-        <aside
-          className="absolute top-16 right-0 w-96 h-full bg-white shadow-lg border-l border-gray-200 p-4 overflow-y-auto transition-transform duration-300 ease-in-out transform translate-x-0"
-          style={{ zIndex: 9999 }}
+      <AnimatePresence>
+  {showAudit && (
+    <motion.div
+      key="audit"
+      initial={{ x: '100%', opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: '100%', opacity: 0 }}
+      transition={{ type: 'tween', duration: 0.3 }}
+      className="fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-xl z-50 p-4 overflow-y-auto"
+    >
+      {/* Close Button */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">Audit Log</h2>
+        <button
+          onClick={() => setShowAudit(false)}
+          className="text-gray-500 hover:text-red-500 text-xl font-bold"
         >
-          <h3 className="text-lg font-semibold mb-4">Audit Trail</h3>
-          <ul className="text-sm space-y-3">
-            {auditTrail.map((log, idx) => (
-              <li key={idx} className="border-b pb-1">
-                <div className="font-semibold">{new Date(log.timestamp).toLocaleString()}</div>
-                <div>{log.message}</div>
-              </li>
-            ))}
-            {auditTrail.length === 0 && <li className="text-gray-500">No audit logs yet.</li>}
-          </ul>
-        </aside>
+          ×
+        </button>
+      </div>
+
+      {/* Render your audit log entries here */}
+      {auditTrail.length > 0 ? (
+        <ul className="space-y-2">
+          {auditTrail.map((log, idx) => (
+            <li key={idx} className="text-sm text-gray-700 border-b pb-2">
+              {log}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-gray-500">No actions yet.</p>
       )}
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   );
 }
