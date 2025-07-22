@@ -265,16 +265,20 @@ export default function App() {
 
       <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2 relative">
         {/* Critical Entities Banner */}
-        {criticalEntities.length > 0 && (
-          <section className="mb-6 border border-red-400 rounded p-3 bg-red-50 animate-pulse">
-            <h3 className="text-red-700 font-semibold mb-2">Critical Entities</h3>
-            {criticalEntities.map(entity => (
-              <div key={entity.id} className="text-sm mb-1 font-semibold text-red-700">
-                {entity.name} (Risk: {entity.riskScore}) — {entity.summary}
-              </div>
-            ))}
-          </section>
-        )}
+        {/* Critical alert always shown if any in Ingest */}
+  {entities.some(e => e.riskScore >= 80) && (
+    <section className="mb-6 border border-red-400 rounded p-3 bg-red-50 animate-pulse">
+      <h3 className="text-red-700 font-semibold mb-2">Critical Entities (Ingest Tab)</h3>
+      {entities
+        .filter(e => e.riskScore >= 80)
+        .map(entity => (
+          <div key={entity.id} className="text-sm mb-1 font-semibold text-red-700">
+            {entity.name} (Risk: {entity.riskScore}) — {entity.summary}
+          </div>
+        ))
+      }
+    </section>
+  )}
 
         {/* Tabs */}
         <div
