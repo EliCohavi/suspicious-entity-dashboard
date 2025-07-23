@@ -13,6 +13,7 @@ export default function App() {
   const [priorityEntities, setPriorityEntities] = useState([]);
   const [deletedEntities, setDeletedEntities] = useState([]);
   const [submittedEntities, setSubmittedEntities] = useState([]);
+  const [sentEntities, setSentEntities] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
   const [activeTab, setActiveTab] = useState('Ingest');
@@ -37,9 +38,9 @@ export default function App() {
       const { offsetLeft, offsetWidth } = activeTabEl;
       setSliderStyle({ left: offsetLeft, width: offsetWidth });
     }
-  }, [activeTab, searchTerm]); // also update if search changes (tabs stay fixed, but just in case)
+  }, [activeTab, searchTerm]);
 
-  // Logging, entity move, sorting, ingest, etc (same as your logic)
+  // Logging, entity move, sorting, ingest, etc
   const logAudit = (message) => {
     setAuditTrail(prev => [
       { timestamp: new Date().toISOString(), message },
@@ -79,6 +80,18 @@ export default function App() {
         if (!moveEntity(flaggedEntities, setFlaggedEntities, priorityEntities, setPriorityEntities, id, 'Priority'))
           ;
       return;
+    }
+
+    // Add to sentEntities on Approved or Escalated (no duplicates)
+    if (newStatus === 'Approved' || newStatus === 'Escalated') {
+      const allEntities = [...entities, ...flaggedEntities, ...priorityEntities, ...deletedEntities];
+      const entity = allEntities.find(e => e.id === id);
+      if (entity) {
+        setSentEntities(prev => {
+          if (prev.find(e => e.id === id)) return prev;
+          return [...prev, { ...entity, status: newStatus }];
+        });
+      }
     }
   };
 
@@ -221,6 +234,26 @@ export default function App() {
     }),
   };
 
+  // Download report function
+  const handleDownloadReport = () => {
+    const report = {
+      generatedAt: new Date().toISOString(),
+      sentEntities,
+      auditTrail,
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="h-screen flex flex-col relative">
       <Header />
@@ -232,60 +265,59 @@ export default function App() {
 
       <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2 relative">
         {/* Critical Entities Banner */}
-        {criticalEntities.length > 0 && (
-          <section className="mb-6 border border-red-400 rounded p-3 bg-red-50 animate-pulse">
-            <h3 className="text-red-700 font-semibold mb-2">Critical Entities</h3>
-            {criticalEntities.map(entity => (
-              <div key={entity.id} className="text-sm mb-1 font-semibold text-red-700">
-                {entity.name} (Risk: {entity.riskScore}) — {entity.summary}
-              </div>
-            ))}
-          </section>
-        )}
+        {/* Critical alert always shown if any in Ingest */}
+  {entities.some(e => e.riskScore >= 80) && (
+    <section className="mb-6 border border-red-400 rounded p-3 bg-red-50 animate-pulse">
+      <h3 className="text-red-700 font-semibold mb-2">Critical Entities (Ingest Tab)</h3>
+      {entities
+        .filter(e => e.riskScore >= 80)
+        .map(entity => (
+          <div key={entity.id} className="text-sm mb-1 font-semibold text-red-700">
+            {entity.name} (Risk: {entity.riskScore}) — {entity.summary}
+          </div>
+        ))
+      }
+    </section>
+  )}
 
         {/* Tabs */}
-        <div
-          className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4 relative select-none"
-          ref={tabsRef}
-          style={{ userSelect: 'none' }}
-        >
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => handleTabChange(tab)}
-                className={`flex-1 text-sm font-medium px-4 py-2 rounded-full mx-1 transition-colors duration-200
-                  ${isActive ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-blue-600 hover:bg-white'}`}
-                type="button"
-              >
-                {tab}
-              </button>
-            );
-          })}
+<div
+  className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4 relative select-none"
+  ref={tabsRef}
+  style={{ userSelect: 'none' }}
+>
+  {tabs.map((tab) => {
+    const isActive = activeTab === tab;
+    return (
+      <button
+        key={tab}
+        onClick={() => handleTabChange(tab)}
+        className={`flex-1 text-sm font-medium px-4 py-2 rounded-full mx-1 transition-colors duration-200 relative z-10
+          ${isActive ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-blue-600 hover:bg-white'}`}
+        type="button"
+      >
+        {tab}
+      </button>
+    );
+  })}
 
-          {/* Sliding pill highlight */}
-          <motion.div
-            className="absolute top-1 bottom-1 bg-white rounded-full shadow-md"
-            layout
-            layoutId="slider"
-            style={{
-              left: sliderStyle.left,
-              width: sliderStyle.width,
-              transition: 'left 0.3s ease, width 0.3s ease',
-              pointerEvents: 'none',
-            }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          >
-              {/* Text inside the active pill */}
-      <div className="flex items-center justify-center h-full">
-        <span className="text-blue-600 font-semibold text-sm">
-          {activeTab}
-        </span>
-      </div>
-      </motion.div>
-      </div>
-      
+  {/* Sliding pill highlight - no text inside, z-index below buttons */}
+  <motion.div
+    className="absolute top-1 bottom-1 bg-white rounded-full shadow-md"
+    layout
+    layoutId="slider"
+    style={{
+      left: sliderStyle.left,
+      width: sliderStyle.width,
+      transition: 'left 0.3s ease, width 0.3s ease',
+      pointerEvents: 'none',
+      zIndex: 0, // behind buttons
+    }}
+    transition={{ type: "tween", duration: 0.3, ease: "easeInOut" }}
+  />
+</div>
+
+
         {/* Controls */}
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -302,6 +334,20 @@ export default function App() {
             >
               {showAudit ? 'Hide Audit' : 'Show Audit'}
             </button>
+
+            {/* Download Report button */}
+            <button
+              onClick={handleDownloadReport}
+              disabled={submittedEntities.length === 0}
+              className={`px-3 py-1 rounded text-sm font-semibold shadow-sm transition
+    ${submittedEntities.length === 0
+                  ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+            >
+              Download Report
+            </button>
+
           </div>
 
           <input
@@ -318,13 +364,32 @@ export default function App() {
           <motion.div
             key={activeTab}
             custom={direction}
-            variants={variants}
+            variants={{
+              enter: (direction) => ({
+                x: direction > 0 ? 300 : -300,
+    opacity: 0,
+              }),
+              center: {
+                x: 0,
+    opacity: 1,
+              },
+              exit: (direction) => ({
+                x: direction > 0 ? -300 : 300,
+    opacity: 0,
+              }),
+            }}
+
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            transition={{ type: "tween", duration: 0.25, ease: "easeInOut" }}
           >
-            <EntityTable entities={sortedEntities} onAction={handleAction} onSort={requestSort} sortConfig={sortConfig} />
+            <EntityTable
+              entities={sortedEntities}
+              onAction={handleAction}
+              onSort={requestSort}
+              sortConfig={sortConfig}
+            />
           </motion.div>
         </AnimatePresence>
       </div>
@@ -334,15 +399,27 @@ export default function App() {
           className="absolute top-16 right-0 w-96 h-full bg-white shadow-lg border-l border-gray-200 p-4 overflow-y-auto transition-transform duration-300 ease-in-out transform translate-x-0"
           style={{ zIndex: 9999 }}
         >
-          <h3 className="text-lg font-semibold mb-4">Audit Trail</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Audit Trail</h3>
+            <button
+              onClick={() => setShowAudit(false)}
+              className="text-gray-600 hover:text-gray-900 transition"
+              aria-label="Close Audit Log"
+            >
+              ✕
+            </button>
+          </div>
           <ul className="text-sm space-y-3">
-            {auditTrail.map((log, idx) => (
-              <li key={idx} className="border-b pb-1">
-                <div className="font-semibold">{new Date(log.timestamp).toLocaleString()}</div>
-                <div>{log.message}</div>
-              </li>
-            ))}
-            {auditTrail.length === 0 && <li className="text-gray-500">No audit logs yet.</li>}
+            {auditTrail.length > 0 ? (
+              auditTrail.map((log, idx) => (
+                <li key={idx} className="border-b pb-1">
+                  <div className="font-semibold">{new Date(log.timestamp).toLocaleString()}</div>
+                  <div>{log.message}</div>
+                </li>
+              ))
+            ) : (
+              <li className="text-gray-500">No audit logs yet.</li>
+            )}
           </ul>
         </aside>
       )}
