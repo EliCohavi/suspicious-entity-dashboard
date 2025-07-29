@@ -62,34 +62,28 @@ export default function App() {
     };
 
     if (newStatus === 'Deleted') {
-  const moved =
-    moveEntity(entities, setEntities, deletedEntities, setDeletedEntities, id, 'Deleted') ||
-    moveEntity(flaggedEntities, setFlaggedEntities, deletedEntities, setDeletedEntities, id, 'Deleted') ||
-    moveEntity(priorityEntities, setPriorityEntities, deletedEntities, setDeletedEntities, id, 'Deleted');
-
-  return;
-}
-
+      if (!moveEntity(entities, setEntities, deletedEntities, setDeletedEntities, id, 'Deleted'))
+        if (!moveEntity(flaggedEntities, setFlaggedEntities, deletedEntities, setDeletedEntities, id, 'Deleted'))
+          moveEntity(priorityEntities, setPriorityEntities, deletedEntities, setDeletedEntities, id, 'Deleted');
+      return;
+    }
 
     if (newStatus === 'Flagged') {
-  const moved =
-    moveEntity(entities, setEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged') ||
-    moveEntity(priorityEntities, setPriorityEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged');
+      if (!moveEntity(entities, setEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged'))
+        if (!moveEntity(priorityEntities, setPriorityEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged'))
+          ;
+      return;
+    }
 
-  return;
-}
+    if (newStatus === 'Priority') {
+      if (!moveEntity(entities, setEntities, priorityEntities, setPriorityEntities, id, 'Priority'))
+        if (!moveEntity(flaggedEntities, setFlaggedEntities, priorityEntities, setPriorityEntities, id, 'Priority'))
+          ;
+      return;
+    }
 
-if (newStatus === 'Priority') {
-  const moved =
-    moveEntity(entities, setEntities, priorityEntities, setPriorityEntities, id, 'Priority') ||
-    moveEntity(flaggedEntities, setFlaggedEntities, priorityEntities, setPriorityEntities, id, 'Priority');
-
-  return;
-}
-
-
-    // Add to sentEntities on Approved, Escalated, or Deleted
-    if (newStatus === 'Flagged' || newStatus === 'Priority' || newStatus === 'Deleted') {
+    // Add to sentEntities on Approved or Escalated (no duplicates)
+    if (newStatus === 'Approved' || newStatus === 'Escalated') {
       const allEntities = [...entities, ...flaggedEntities, ...priorityEntities, ...deletedEntities];
       const entity = allEntities.find(e => e.id === id);
       if (entity) {
@@ -102,11 +96,10 @@ if (newStatus === 'Priority') {
   };
 
   const submitBatch = () => {
-    setSubmittedEntities(prev => [...flaggedEntities, ...priorityEntities, ...deletedEntities, ...prev]);
-    logAudit(`Submitted batch: ${flaggedEntities.length} flagged, ${priorityEntities.length} priority, ${deletedEntities.length} deleted alert(s)`);
+    setSubmittedEntities(prev => [...flaggedEntities, ...priorityEntities, ...prev]);
+    logAudit(`Submitted batch: ${flaggedEntities.length} flagged, ${priorityEntities.length} priority alert(s)`);
     setFlaggedEntities([]);
     setPriorityEntities([]);
-    setDeletedEntities([]);
   };
 
   const toggleIngest = () => {
@@ -265,7 +258,7 @@ if (newStatus === 'Priority') {
     <div className="h-screen flex flex-col relative">
       <Header />
       <SummaryBar
-        entities={[...entities, ...flaggedEntities, ...priorityEntities, ...deletedEntities]}
+        entities={[...entities, ...flaggedEntities, ...priorityEntities]}
         onSubmit={submitBatch}
         submittedCount={submittedEntities.length}
       />
