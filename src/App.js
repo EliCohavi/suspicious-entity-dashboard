@@ -62,30 +62,30 @@ export default function App() {
     };
 
     if (newStatus === 'Deleted') {
-  const moved =
-    moveEntity(entities, setEntities, deletedEntities, setDeletedEntities, id, 'Deleted') ||
-    moveEntity(flaggedEntities, setFlaggedEntities, deletedEntities, setDeletedEntities, id, 'Deleted') ||
-    moveEntity(priorityEntities, setPriorityEntities, deletedEntities, setDeletedEntities, id, 'Deleted');
+      const moved =
+        moveEntity(entities, setEntities, deletedEntities, setDeletedEntities, id, 'Deleted') ||
+        moveEntity(flaggedEntities, setFlaggedEntities, deletedEntities, setDeletedEntities, id, 'Deleted') ||
+        moveEntity(priorityEntities, setPriorityEntities, deletedEntities, setDeletedEntities, id, 'Deleted');
 
-  return;
-}
+      return;
+    }
 
 
     if (newStatus === 'Flagged') {
-  const moved =
-    moveEntity(entities, setEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged') ||
-    moveEntity(priorityEntities, setPriorityEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged');
+      const moved =
+        moveEntity(entities, setEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged') ||
+        moveEntity(priorityEntities, setPriorityEntities, flaggedEntities, setFlaggedEntities, id, 'Flagged');
 
-  return;
-}
+      return;
+    }
 
-if (newStatus === 'Priority') {
-  const moved =
-    moveEntity(entities, setEntities, priorityEntities, setPriorityEntities, id, 'Priority') ||
-    moveEntity(flaggedEntities, setFlaggedEntities, priorityEntities, setPriorityEntities, id, 'Priority');
+    if (newStatus === 'Priority') {
+      const moved =
+        moveEntity(entities, setEntities, priorityEntities, setPriorityEntities, id, 'Priority') ||
+        moveEntity(flaggedEntities, setFlaggedEntities, priorityEntities, setPriorityEntities, id, 'Priority');
 
-  return;
-}
+      return;
+    }
 
 
     // Add to sentEntities on Approved, Escalated, or Deleted
@@ -273,56 +273,56 @@ if (newStatus === 'Priority') {
       <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2 relative">
         {/* Critical Entities Banner */}
         {/* Critical alert always shown if any in Ingest */}
-  {entities.some(e => e.riskScore >= 80) && (
-    <section className="mb-6 border border-red-400 rounded p-3 bg-red-50 animate-pulse">
-      <h3 className="text-red-700 font-semibold mb-2">Critical Entities (Ingest Tab)</h3>
-      {entities
-        .filter(e => e.riskScore >= 80)
-        .map(entity => (
-          <div key={entity.id} className="text-sm mb-1 font-semibold text-red-700">
-            {entity.name} (Risk: {entity.riskScore}) — {entity.summary}
-          </div>
-        ))
-      }
-    </section>
-  )}
+        {entities.some(e => e.riskScore >= 80) && (
+          <section className="mb-6 border border-red-400 rounded p-3 bg-red-50 animate-pulse">
+            <h3 className="text-red-700 font-semibold mb-2">Critical Entities (Ingest Tab)</h3>
+            {entities
+              .filter(e => e.riskScore >= 80)
+              .map(entity => (
+                <div key={entity.id} className="text-sm mb-1 font-semibold text-red-700">
+                  {entity.name} (Risk: {entity.riskScore}) — {entity.summary}
+                </div>
+              ))
+            }
+          </section>
+        )}
 
         {/* Tabs */}
-<div
-  className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4 relative select-none"
-  ref={tabsRef}
-  style={{ userSelect: 'none' }}
->
-  {tabs.map((tab) => {
-    const isActive = activeTab === tab;
-    return (
-      <button
-        key={tab}
-        onClick={() => handleTabChange(tab)}
-        className={`flex-1 text-sm font-medium px-4 py-2 rounded-full mx-1 transition-colors duration-200 relative z-10
+        <div
+          className="flex justify-between items-center bg-gray-100 rounded-xl p-1 mb-4 relative select-none"
+          ref={tabsRef}
+          style={{ userSelect: 'none' }}
+        >
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => handleTabChange(tab)}
+                className={`flex-1 text-sm font-medium px-4 py-2 rounded-full mx-1 transition-colors duration-200 relative z-10
           ${isActive ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-blue-600 hover:bg-white'}`}
-        type="button"
-      >
-        {tab}
-      </button>
-    );
-  })}
+                type="button"
+              >
+                {tab}
+              </button>
+            );
+          })}
 
-  {/* Sliding pill highlight - no text inside, z-index below buttons */}
-  <motion.div
-    className="absolute top-1 bottom-1 bg-white rounded-full shadow-md"
-    layout
-    layoutId="slider"
-    style={{
-      left: sliderStyle.left,
-      width: sliderStyle.width,
-      transition: 'left 0.3s ease, width 0.3s ease',
-      pointerEvents: 'none',
-      zIndex: 0, // behind buttons
-    }}
-    transition={{ type: "tween", duration: 0.3, ease: "easeInOut" }}
-  />
-</div>
+          {/* Sliding pill highlight - no text inside, z-index below buttons */}
+          <motion.div
+            className="absolute top-1 bottom-1 bg-white rounded-full shadow-md"
+            layout
+            layoutId="slider"
+            style={{
+              left: sliderStyle.left,
+              width: sliderStyle.width,
+              transition: 'left 0.3s ease, width 0.3s ease',
+              pointerEvents: 'none',
+              zIndex: 0, // behind buttons
+            }}
+            transition={{ type: "tween", duration: 0.3, ease: "easeInOut" }}
+          />
+        </div>
 
 
         {/* Controls */}
@@ -374,15 +374,15 @@ if (newStatus === 'Priority') {
             variants={{
               enter: (direction) => ({
                 x: direction > 0 ? 300 : -300,
-    opacity: 0,
+                opacity: 0,
               }),
               center: {
                 x: 0,
-    opacity: 1,
+                opacity: 1,
               },
               exit: (direction) => ({
                 x: direction > 0 ? -300 : 300,
-    opacity: 0,
+                opacity: 0,
               }),
             }}
 
