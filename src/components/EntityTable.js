@@ -49,9 +49,8 @@ export default function EntityTable({ entities, onAction, onSort, sortConfig }) 
         {entities.map((entity) => (
           <tr
             key={entity.id}
-            className={`border-t text-sm hover:bg-gray-50 ${
-              entity.riskScore >= 80 ? 'animate-pulse bg-red-50' : ''
-            }`}
+            className={`border-t text-sm hover:bg-gray-50 ${entity.riskScore >= 80 ? 'animate-pulse bg-red-50' : ''
+              }`}
           >
             <td className="px-4 py-2 font-semibold">{entity.name}</td>
             <td className="px-4 py-2">{entity.type}</td>
