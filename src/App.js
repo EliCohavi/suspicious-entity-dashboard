@@ -88,7 +88,7 @@ export default function App() {
     }
 
 
-    // Add to sentEntities on Approved, Escalated, or Deleted
+    // Add to sentEntities on Flagged, Priority, or Deleted
     if (newStatus === 'Flagged' || newStatus === 'Priority' || newStatus === 'Deleted') {
       const allEntities = [...entities, ...flaggedEntities, ...priorityEntities, ...deletedEntities];
       const entity = allEntities.find(e => e.id === id);
