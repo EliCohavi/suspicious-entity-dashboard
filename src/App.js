@@ -109,6 +109,8 @@ export default function App() {
     setDeletedEntities([]);
   };
 
+  const ingestInterval = useRef(null);
+
   const toggleIngest = () => {
     if (isIngesting) {
       clearInterval(ingestInterval.current);
@@ -136,8 +138,6 @@ export default function App() {
       logAudit('Started ingesting new entities');
     }
   };
-
-  const ingestInterval = useRef(null);
 
   useEffect(() => {
     setEntities(prev =>
