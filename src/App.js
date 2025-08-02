@@ -177,6 +177,19 @@ export default function App() {
     }
   }
 
+
+  if (sortConfig.key !== null) {
+    sortedEntities.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
+      return 0;
+    });
+  }
+
   const requestSort = (key) => {
     let direction = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
@@ -196,18 +209,6 @@ export default function App() {
   );
 
   const sortedEntities = [...displayedEntities];
-
-  if (sortConfig.key !== null) {
-    sortedEntities.sort((a, b) => {
-      let aVal = a[sortConfig.key];
-      let bVal = b[sortConfig.key];
-      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-      if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
-      return 0;
-    });
-  }
 
   const criticalEntities = displayedEntities.filter(e => e.riskScore >= 80);
 
