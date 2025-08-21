@@ -38,7 +38,7 @@ export default function App() {
       const { offsetLeft, offsetWidth } = activeTabEl;
       setSliderStyle({ left: offsetLeft, width: offsetWidth });
     }
-  }, [activeTab, searchTerm]);
+  }, [activeTab, searchTerm]); // Dependency arrays
 
   // Logging, entity move, sorting, ingest, etc
   const logAudit = (message) => {
@@ -52,10 +52,10 @@ export default function App() {
     const moveEntity = (sourceArr, setSourceArr, targetArr, setTargetArr, entityId, newEntityStatus) => {
       const idx = sourceArr.findIndex(e => e.id === entityId);
       if (idx === -1) return false;
-      const entity = { ...sourceArr[idx], status: newEntityStatus };
-      const newSource = [...sourceArr];
-      newSource.splice(idx, 1);
-      setSourceArr(newSource);
+      const entity = { ...sourceArr[idx], status: newEntityStatus }; // Creates copy of entity with new status
+      const newSource = [...sourceArr]; // Makes shallow copy of source array
+      newSource.splice(idx, 1); // Removes entity from shallow copy
+      setSourceArr(newSource); // Updates source array with modified copy
       setTargetArr(prev => [entity, ...prev]);
       logAudit(`${entity.name} moved to ${newEntityStatus}`);
       return true;
