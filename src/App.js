@@ -109,6 +109,8 @@ export default function App() {
     setDeletedEntities([]);
   };
 
+  const ingestInterval = useRef(null);
+
   const toggleIngest = () => {
     if (isIngesting) {
       clearInterval(ingestInterval.current);
@@ -136,8 +138,6 @@ export default function App() {
       logAudit('Started ingesting new entities');
     }
   };
-
-  const ingestInterval = useRef(null);
 
   useEffect(() => {
     setEntities(prev =>
@@ -178,6 +178,19 @@ export default function App() {
   }
 
   // Sort entities based on direction
+  if (sortConfig.key !== null) {
+    sortedEntities.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
+      return 0;
+    });
+  }
+
+
   if (sortConfig.key !== null) {
     sortedEntities.sort((a, b) => {
       let aVal = a[sortConfig.key];
